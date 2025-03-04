@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: hf-provisioner-digitalenergy
+  repository: ghcr.io/negashev/hf-provisioner-digitalenergy
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.0.1"
+  tag: "main"
 
 imagePullSecrets: []
 nameOverride: ""
