@@ -8,6 +8,7 @@ import (
 	"github.com/negashev/hf-provisioner-digitalenergy/pkg/gode"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/json"
+	"os"
 	"repository.basistech.ru/BASIS/decort-golang-sdk/pkg/cloudapi/compute"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -93,6 +94,10 @@ func UpdateVMStatus(req router.Request, resp router.Response) error {
 		case "VINS":
 			vm.Status.PrivateIP = n.IPAddress
 		}
+	}
+	varValue := os.Getenv("USE_PRIVATE_IP")
+	if varValue != "" {
+		vm.Status.PublicIP = vm.Status.PrivateIP
 	}
 
 	vm.Status.Hostname = instance.Name // usually?
