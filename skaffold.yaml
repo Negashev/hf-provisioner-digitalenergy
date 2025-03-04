@@ -1,0 +1,28 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+deploy:
+  helm:
+    releases:
+      - name: hf-provisioner-digitalenergy
+        chartPath: ./chart/hf-provisioner-digitalenergy
+        setValues:
+          image.repository: hf-provisioner-digitalenergy
+          image.tag: latest
+        namespace: hobbyfarm-system
+build:
+  local:
+    push: false
+    useDockerCLI: true
+  artifacts:
+    - image: hf-provisioner-digitalenergy
+      runtimeType: go # specify one of `go`, `nodejs`, `jvm`, `python`, or `netcore`
+      custom:
+        buildCommand: "GOOS=linux GOARCH=arm64 go build -gcflags='all=-N -l' -o ./hf-provisioner-digitalenergy; docker build -t hf-provisioner-digitalenergy -f Dockerfile.skaffold ."
+        dependencies:
+          paths:
+            - main.go
+            - pkg/**
+            - pkg/**/**
+            - pkg/**/**/**
+            - pkg/**/**/**/**
+            - chart

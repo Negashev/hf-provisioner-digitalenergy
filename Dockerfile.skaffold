@@ -1,0 +1,4 @@
+FROM golang:1.20
+CMD ["/hf-provisioner-digitalenergy"]
+ENV GOTRACEBACK=all
+COPY hf-provisioner-digitalenergy /hf-provisioner-digitalenergy
