@@ -49,6 +49,37 @@ func ResolveConfigItem(obj *v1.VirtualMachine, req router.Request, item string) 
 	return ""
 }
 
+func ResolveVMConfigMap(obj *v1.VirtualMachine, req router.Request, item string) string {
+	// go from most to least specific
+	env := &v1.Environment{}
+	err := req.Client.Get(req.Ctx, kclient.ObjectKey{
+		Namespace: obj.Namespace,
+		Name:      obj.Status.EnvironmentId,
+	}, env)
+
+	if err != nil {
+		logrus.Warnf("error while looking up environment for config key %s: %s", item, err.Error())
+	}
+
+	vmTemplate := &v1.VirtualMachineTemplate{}
+	err = req.Client.Get(req.Ctx, kclient.ObjectKey{
+		Namespace: obj.Namespace,
+		Name:      obj.Spec.VirtualMachineTemplateId,
+	}, vmTemplate)
+
+	if err != nil {
+		logrus.Warnf("error while looking up virtual machine template for config key %s: %s", obj.Spec.VirtualMachineTemplateId, err.Error())
+	}
+	if err == nil {
+		// first, check cloud-config for the virtual machine template
+		if val, ok := vmTemplate.Spec.ConfigMap[item]; ok {
+			return val
+		}
+	}
+
+	return ""
+}
+
 func ResolveConfigInt(obj *v1.VirtualMachine, req router.Request, item string) uint64 {
 	env := &v1.Environment{}
 	err := req.Client.Get(req.Ctx, kclient.ObjectKey{

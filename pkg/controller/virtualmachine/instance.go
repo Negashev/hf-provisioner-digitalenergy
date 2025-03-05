@@ -49,7 +49,10 @@ func InstanceHandler(req router.Request, resp router.Response) error {
 		log.Fatal(err)
 	}
 
-	getInstance, err := gode.GetOrCreateInstance(client, name, req, dcr)
+	// add cloud_config from template VM
+	yamlData := config.ResolveVMConfigMap(obj, req, "cloud-config")
+
+	getInstance, err := gode.GetOrCreateInstance(client, name, req, dcr, yamlData)
 	dcrJson, err := json.Marshal(getInstance)
 	if err != nil {
 		return fmt.Errorf("error marshalling json: %s", err.Error())

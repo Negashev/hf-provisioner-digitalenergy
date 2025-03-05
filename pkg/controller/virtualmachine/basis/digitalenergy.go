@@ -96,7 +96,7 @@ func UpdateVMStatus(req router.Request, resp router.Response) error {
 		}
 	}
 	varValue := os.Getenv("USE_PRIVATE_IP")
-	if varValue != "" {
+	if varValue != "" && vm.Status.PublicIP == "" {
 		vm.Status.PublicIP = vm.Status.PrivateIP
 	}
 
@@ -176,7 +176,7 @@ func CreateInstance(req router.Request, _ router.Response) error {
 		return req.Client.Status().Update(req.Ctx, instance)
 	}
 	// Могут быть проблемы с сетью при создании новой ВМ
-	getInstance, err := gode.GetOrCreateInstance(dClient, instance.Name, req, dcr.ToGode())
+	getInstance, err := gode.GetOrCreateInstance(dClient, instance.Name, req, dcr.ToGode(), "")
 	if err != nil {
 		v1alpha1.ConditionInstanceExists.SetStatus(instance, "false")
 		v1alpha1.ConditionInstanceExists.SetError(instance, "digital energy error", err)

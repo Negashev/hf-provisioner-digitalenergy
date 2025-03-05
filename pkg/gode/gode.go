@@ -1,13 +1,13 @@
 package gode
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/acorn-io/baaah/pkg/router"
 	config "github.com/negashev/hf-provisioner-digitalenergy/pkg/config"
 	"github.com/negashev/hf-provisioner-digitalenergy/pkg/controller/virtualmachine/secret"
 	"github.com/negashev/hf-provisioner-digitalenergy/pkg/namespace"
-	"golang.org/x/crypto/ssh"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	"log"
 	decort "repository.basistech.ru/BASIS/decort-golang-sdk"
@@ -15,7 +15,6 @@ import (
 	"repository.basistech.ru/BASIS/decort-golang-sdk/pkg/cloudapi/compute"
 	"repository.basistech.ru/BASIS/decort-golang-sdk/pkg/cloudapi/kvmx86"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 func GetGodeClient(vmName string, req router.Request) (*decort.DecortClient, error) {
@@ -65,7 +64,7 @@ func GetGodeClient(vmName string, req router.Request) (*decort.DecortClient, err
 	return decort.New(cfg), nil
 }
 
-func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req router.Request, dcr kvmx86.CreateRequest) (*compute.RecordCompute, error) {
+func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req router.Request, dcr kvmx86.CreateRequest, cloud_config string) (*compute.RecordCompute, error) {
 
 	getInstance := &compute.RecordCompute{}
 
@@ -76,6 +75,12 @@ func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req 
 	if FindServer.EntryCount > 0 {
 		res = FindServer.FilterByName(instanceName).Data[0].ID
 	} else {
+		// add cloud_config
+		var yamlMap map[string]interface{}
+		if err := yaml.Unmarshal([]byte(cloud_config), &yamlMap); err != nil {
+			log.Fatal(err)
+		}
+
 		// set cloud init with ssh auth
 		secret, err := secret.GetSecret(req)
 		if err != nil {
@@ -85,7 +90,9 @@ func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req 
 
 		public_key_from_secret := string(secret.Data["public_key"])
 		public_key := public_key_from_secret[:len(public_key_from_secret)-1]
-		dcr.Userdata = `{
+
+		// Загрузка второго JSON
+		anotherJSON := `{
 				"users": [
 					{
 						"lock-passwd": false,
@@ -96,6 +103,15 @@ func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req 
 					}
 				]
 			}`
+		var jsonMap map[string]interface{}
+		if err := json.Unmarshal([]byte(anotherJSON), &jsonMap); err != nil {
+			panic(err)
+		}
+		// Объединение JSON объектов (YAML имеет приоритет)
+		merged := mergeMaps(jsonMap, yamlMap)
+		// Результат
+		result, _ := json.MarshalIndent(merged, "", "  ")
+		dcr.Userdata = string(result)
 		res, err = dClient.CloudAPI().KVMX86().Create(req.Ctx, dcr)
 		if err != nil {
 			log.Fatal(err)
@@ -105,87 +121,31 @@ func GetOrCreateInstance(dClient *decort.DecortClient, instanceName string, req 
 	if err != nil {
 		return nil, err
 	}
-	// START write ssh key
-	//secret, err := secret.GetSecret(req)
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return nil, err
-	//}
-	//
-	//public_key_from_secret := string(secret.Data["public_key"])
-	//public_key := public_key_from_secret[:len(public_key_from_secret)-1]
-	//
-	//config := &SSHConfig{
-	//	Host:     getInstance.Interfaces[0].IPAddress,
-	//	Port:     22,
-	//	User:     getInstance.OSUsers[0].Login,
-	//	Password: getInstance.OSUsers[0].Password,
-	//	Cmd:      "echo '" + public_key + "' > /home/" + getInstance.OSUsers[0].Login + "/.ssh/authorized_keys",
-	//}
-	//
-	//if err := sshConnect(config); err != nil {
-	//	panic(err)
-	//}
-	// STOP
 	return getInstance, nil
 }
 
-type SSHConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Cmd      string
-}
+// Рекурсивное объединение карт с приоритетом второй карты
+func mergeMaps(base, override map[string]interface{}) map[string]interface{} {
+	res := make(map[string]interface{})
 
-func sshConnect(config *SSHConfig) error {
-	// Создаем SSH-конфигурацию
-	sshConfig := &ssh.ClientConfig{
-		User: config.User,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(config.Password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Не использовать в продакшене!
+	// Копируем базовые значения
+	for k, v := range base {
+		res[k] = v
 	}
 
-	var client *ssh.Client
-	var err error
-
-	// Попытки подключения с ожиданием
-	for attempts := 0; attempts < 100; attempts++ {
-		client, err = ssh.Dial("tcp",
-			fmt.Sprintf("%s:%d", config.Host, config.Port),
-			sshConfig,
-		)
-		if err == nil {
-			break
+	// Мерджим с переопределениями
+	for k, overrideVal := range override {
+		if baseVal, exists := res[k]; exists {
+			// Проверяем вложенные карты
+			baseMap, baseIsMap := baseVal.(map[string]interface{})
+			overrideMap, overrideIsMap := overrideVal.(map[string]interface{})
+			if baseIsMap && overrideIsMap {
+				res[k] = mergeMaps(baseMap, overrideMap)
+				continue
+			}
 		}
-		fmt.Printf("Подключение не установлено. Повторная попытка через 2 сек... %v\n", err)
-		time.Sleep(2 * time.Second)
+		// Перезаписываем значение
+		res[k] = overrideVal
 	}
-
-	if err != nil {
-		return fmt.Errorf("не удалось установить соединение: %v", err)
-	}
-	defer client.Close()
-
-	// Создаем сессию
-	session, err := client.NewSession()
-	if err != nil {
-		return fmt.Errorf("не удалось создать сессию: %v", err)
-	}
-	defer session.Close()
-
-	// Выполняем команду
-	var stdout, stderr bytes.Buffer
-	session.Stdout = &stdout
-	session.Stderr = &stderr
-
-	err = session.Run(config.Cmd)
-	if err != nil {
-		return fmt.Errorf("ошибка выполнения команды: %v\nSTDERR: %s", err, stderr.String())
-	}
-
-	fmt.Printf("Результат выполнения команды:\nSTDOUT:\n%s\nSTDERR:\n%s", stdout.String(), stderr.String())
-	return nil
+	return res
 }
