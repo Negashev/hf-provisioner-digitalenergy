@@ -8,7 +8,8 @@ image:
   repository: ghcr.io/negashev/hf-provisioner-digitalenergy
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "main"
+  tag: ""
+
 
 imagePullSecrets: []
 nameOverride: ""
