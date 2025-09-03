@@ -3,6 +3,16 @@ entries:
   hf-provisioner-digitalenergy:
   - apiVersion: v2
     appVersion: 1.16.0
+    created: "2025-09-03T16:37:47.795861005Z"
+    description: A Helm chart for Kubernetes
+    digest: 06dd6b45fdb3b86c48e977813da725256169e2186f1c583c189dacc7198efc5a
+    name: hf-provisioner-digitalenergy
+    type: application
+    urls:
+    - https://github.com/Negashev/hf-provisioner-digitalenergy/releases/download/hf-provisioner-digitalenergy-0.3.1/hf-provisioner-digitalenergy-0.3.1.tgz
+    version: 0.3.1
+  - apiVersion: v2
+    appVersion: 1.16.0
     created: "2025-09-03T15:48:14.83027425Z"
     description: A Helm chart for Kubernetes
     digest: 3faf959f833e698e240b8aa1141f130e96de7f4b5f0313e72b9bbd0e84ecfc24
@@ -31,4 +41,4 @@ entries:
     urls:
     - https://github.com/Negashev/hf-provisioner-digitalenergy/releases/download/hf-provisioner-digitalenergy-0.2.0/hf-provisioner-digitalenergy-0.2.0.tgz
     version: 0.2.0
-generated: "2025-09-03T15:48:14.830285481Z"
+generated: "2025-09-03T16:37:47.795877807Z"
