@@ -2,6 +2,8 @@ package virtualmachine
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/acorn-io/baaah/pkg/router"
 	v1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
 	"github.com/negashev/hf-provisioner-digitalenergy/pkg/apis/provisioning.hobbyfarm.io/v1alpha1"
@@ -11,7 +13,6 @@ import (
 	labels2 "github.com/negashev/hf-provisioner-digitalenergy/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
-	"log"
 	"repository.basistech.ru/BASIS/decort-golang-sdk/pkg/cloudapi/kvmx86"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,6 +44,17 @@ func InstanceHandler(req router.Request, resp router.Response) error {
 		},
 	}
 	dcr := buildInstanceCreateRequest(name, obj, req)
+
+	// Validate required fields
+	if dcr.StoragePolicyID == 0 {
+		return fmt.Errorf("StoragePolicyID is required for creating VM instance")
+	}
+	if dcr.RGID == 0 {
+		return fmt.Errorf("RGID is required for creating VM instance")
+	}
+	if dcr.ImageID == 0 {
+		return fmt.Errorf("ImageID is required for creating VM instance")
+	}
 
 	client, err := gode.GetGodeClient(obj.Name, req)
 	if err != nil {
@@ -97,14 +109,23 @@ func buildInstanceCreateRequest(name string, vm *v1.VirtualMachine, req router.R
 	if VINS != 0 {
 		Interfaces = append(Interfaces, kvmx86.Interface{NetType: "VINS", NetID: VINS})
 	}
+
+	// Get StoragePolicyID, provide default value if not specified
+	storagePolicyID := config.ResolveConfigInt(vm, req, "StoragePolicyID")
+	if storagePolicyID == 0 {
+		// Try to get default storage policy ID from environment
+		storagePolicyID = config.ResolveConfigInt(vm, req, "DefaultStoragePolicyID")
+	}
+
 	return kvmx86.CreateRequest{
-		RGID:       config.ResolveConfigInt(vm, req, "RGID"),
-		Name:       name,
-		CPU:        config.ResolveConfigInt(vm, req, "CPU"),
-		RAM:        config.ResolveConfigInt(vm, req, "RAM"),
-		ImageID:    config.ResolveConfigInt(vm, req, "ImageID"),
-		BootDisk:   config.ResolveConfigInt(vm, req, "BootDisk"),
-		Start:      true,
-		Interfaces: Interfaces,
+		RGID:            config.ResolveConfigInt(vm, req, "RGID"),
+		Name:            name,
+		CPU:             config.ResolveConfigInt(vm, req, "CPU"),
+		RAM:             config.ResolveConfigInt(vm, req, "RAM"),
+		ImageID:         config.ResolveConfigInt(vm, req, "ImageID"),
+		BootDisk:        config.ResolveConfigInt(vm, req, "BootDisk"),
+		StoragePolicyID: storagePolicyID,
+		Start:           true,
+		Interfaces:      Interfaces,
 	}
 }

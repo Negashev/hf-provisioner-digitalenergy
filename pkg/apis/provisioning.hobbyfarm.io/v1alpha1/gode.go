@@ -7,12 +7,13 @@ import (
 func (d *InstanceCreateRequest) ToGode() kvmx86.CreateRequest {
 
 	return kvmx86.CreateRequest{
-		RGID:     d.RGID,
-		Name:     d.Name,
-		CPU:      d.CPU,
-		RAM:      d.RAM,
-		ImageID:  d.ImageID,
-		BootDisk: d.BootDiskSize,
-		Start:    true,
+		RGID:            d.RGID,
+		Name:            d.Name,
+		CPU:             d.CPU,
+		RAM:             d.RAM,
+		ImageID:         d.ImageID,
+		BootDisk:        d.BootDiskSize,
+		StoragePolicyID: d.StoragePolicyID,
+		Start:           true,
 	}
 }

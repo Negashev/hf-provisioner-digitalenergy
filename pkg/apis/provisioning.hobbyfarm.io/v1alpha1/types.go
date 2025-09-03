@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/wrangler/pkg/genericcondition"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"repository.basistech.ru/BASIS/decort-golang-sdk/pkg/cloudapi/compute"
 )
 
 var (
@@ -36,7 +35,13 @@ type Instance struct {
 // +k8s:deepcopy-gen=true
 
 type InstanceCreateRequest struct {
-	compute.RecordCompute
+	RGID           uint64 `json:"rgid"`
+	Name           string `json:"name"`
+	CPU            uint64 `json:"cpu"`
+	RAM            uint64 `json:"ram"`
+	ImageID        uint64 `json:"imageId"`
+	BootDiskSize   uint64 `json:"bootDiskSize"`
+	StoragePolicyID uint64 `json:"storagePolicyId"`
 }
 
 // +k8s:deepcopy-gen=true
